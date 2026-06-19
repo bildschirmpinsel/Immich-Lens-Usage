@@ -25,6 +25,7 @@ ALBUM_FEATURES = ["albumName", "id"]
 
 ASSET_METADATA_KEY = "exifInfo"
 ASSET_METADATA_FOCAL_LENGTH_KEY = "focalLength"
+ASSET_METADATA_FNUMBER_KEY = "fNumber"
 ASSET_METADATA_LENS_MODEL_KEY = "lensModel"
 ASSET_METADATA_CAMERA_MAKE_KEY = "make"
 
@@ -148,13 +149,14 @@ if __name__ == "__main__":
             iterate_over_pages = True
             while iterate_over_pages:
                 logger.debug(f'This request contained {asset_response["count"]} assets.')
+                # selection for asset ids of only images, which have metadata
                 asset_ids = asset_ids + [asset["id"] for asset in asset_response["items"] if asset["hasMetadata"] and asset["type"] == "IMAGE"]
                 next_page = asset_response["nextPage"]
                 if next_page is None:
                     iterate_over_pages = False
                 else:
                     # get next page of assets
-                    payload["page"] = next_page # maybe just "page"
+                    payload["page"] = next_page
                     search_response = requests.post(url=f'{immich_server_address}/api/search/metadata', json=payload, headers=asset_search_header)
                     asset_response = search_response.json()["assets"]
 
@@ -173,7 +175,7 @@ if __name__ == "__main__":
     # Get metadata for asset ids #
     ##############################
 
-    lens_metadata = {}
+    metadata = {}
     for i, asset_id in tqdm(enumerate(asset_ids), desc="Processing assets", total=len(asset_ids)):
         asset_response = requests.get(url=f'{immich_server_address}/api/assets/{asset_id}', headers=asset_headers)
         asset_response.raise_for_status()
@@ -186,20 +188,31 @@ if __name__ == "__main__":
             camera_make = asset_response[ASSET_METADATA_KEY][ASSET_METADATA_CAMERA_MAKE_KEY]
             lens_model = asset_response[ASSET_METADATA_KEY][ASSET_METADATA_LENS_MODEL_KEY]
             focal_length = asset_response[ASSET_METADATA_KEY][ASSET_METADATA_FOCAL_LENGTH_KEY]
+            f_number = asset_response[ASSET_METADATA_KEY][ASSET_METADATA_FNUMBER_KEY]
             if not lens_model or not focal_length or focal_length == 0:
                 # ignore entries with no lens mdoel or focal length (i.e. adapted lenses)
-                logger.debug(f'Dropped asset {asset_id} with lens model {lens_model} and focal length {focal_length}.')
+                logger.debug(f'Dropped asset {asset_id} with lens model {lens_model}, focal length {focal_length}, and fNumber {f_number}.')
                 continue
             else:
-                lenses_for_camera = lens_metadata.get(camera_make, {})
-                focal_lengths = lenses_for_camera.get(lens_model, [])
+                # retreive dictionary structure
+                lenses_for_camera = metadata.get(camera_make, {})
+                lens_metadata = lenses_for_camera.get(lens_model, {})
+                focal_lengths = lens_metadata.get(ASSET_METADATA_FOCAL_LENGTH_KEY, [])
+                f_numbers = lens_metadata.get(ASSET_METADATA_FNUMBER_KEY, [])
+
+                # add new values
                 focal_lengths.append(focal_length)
-                lenses_for_camera[lens_model] = focal_lengths
-                lens_metadata[camera_make] = lenses_for_camera
-                logger.debug(f'Added focal length {focal_length} for lens {lens_model} and camera {camera_make}.')
+                f_numbers.append(f_number)
+
+                # update values in dictionaries
+                lens_metadata[ASSET_METADATA_FOCAL_LENGTH_KEY] = focal_lengths
+                lens_metadata[ASSET_METADATA_FNUMBER_KEY] = f_numbers
+                lenses_for_camera[lens_model] = lens_metadata
+                metadata[camera_make] = lenses_for_camera
+                logger.debug(f'Added focal length {focal_length} and fNumber{f_number} for lens {lens_model} and camera {camera_make}.')
 
     
-    print(lens_metadata)
+    print(metadata)
 
     # TODO plot metadata
 
