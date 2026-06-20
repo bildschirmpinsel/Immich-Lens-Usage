@@ -18,3 +18,6 @@ One of the following variables needs to be set, otherwise, no data can be querie
 - `LENS_USAGE_IMMICH_LIBRARIES_NAMES`: Set to empty string to include all libraries. To ignore this filter, do not set. If set, needs __admin__ authenticated API key.
 - `LENS_USAGE_IMMICH_LIBRARIES_OWNER`: Set to API key of owner of libraries if one or more libraries have been specified.
 - `LENS_USAGE_IMMICH_ALBUMS`: Set to only include a list of albums. If not set, all albums associated with the API key are taken into account.
+
+## Usage
+Running the script `Visualization.py` yields an interactive browser app for visualizing the metadata and computed statistics. The server runs by default under `http://127.0.0.1:8050`.
