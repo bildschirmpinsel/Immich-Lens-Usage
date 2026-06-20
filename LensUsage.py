@@ -14,7 +14,6 @@ IMMICH_LIBRARIES_NAMES_ENVIRONMENT_VARIABLE = "LENS_USAGE_IMMICH_LIBRARIES_NAMES
 IMMICH_LIBRARIES_OWNER_ENVIRONMENT_VARIABLE = "LENS_USAGE_IMMICH_LIBRARIES_OWNER"
 IMMICH_ALBUMS_ENVIRONMENT_VARIABLE = "LENS_USAGE_IMMICH_ALBUMS"
 
-LOG_FILE_ENVIRONMENT_VARIABLE = "LENS_USAGE_LOG_FILE"
 LOG_LEVEL_ENVIRONMENT_VARIABLE = "LENS_USAGE_LOG_LEVEL"
 
 IMMICH_LIBRARIES_DELIMITER = ";"
@@ -30,7 +29,6 @@ ASSET_METADATA_LENS_MODEL_KEY = "lensModel"
 ASSET_METADATA_CAMERA_MAKE_KEY = "make"
 
 SEARCH_RESPONSE_SIZE=100
-LOG_LEVEL = logging.INFO
 
 from enum import Enum
 
@@ -38,7 +36,7 @@ class ImageSource(Enum):
     LIBRARIES = 1
     ALBUMS = 2
 
-if __name__ == "__main__":
+def get_lens_usage_metadata():
     def extract_environment_variable(variable, variable_descriptor, optional=False):
         extracted_value = environ.get(key=variable, default=None)
         if not extracted_value and not optional:
@@ -50,29 +48,48 @@ if __name__ == "__main__":
     #################
     # Set up logger #
     #################
+
+    log_level_environment = extract_environment_variable(LOG_LEVEL_ENVIRONMENT_VARIABLE, "log level (INFO, DEBUG, CRITICAL)", optional=True)
+    if log_level_environment is None:
+        log_level = logging.INFO
+    else:
+        if log_level_environment.lower() == "info":
+            log_level = logging.INFO
+        elif log_level_environment.lower() == "debug":
+            log_level = logging.DEBUG
+        elif log_level_environment.lower() == "critical":
+            log_level = logging.CRITICAL()
+        else:
+            raise ValueError(f'Invalid log level found in environment variable {LOG_LEVEL_ENVIRONMENT_VARIABLE}: {log_level_environment}')
+
     logger = logging.getLogger(__name__)
-    logger.setLevel(LOG_LEVEL)
+    logger.setLevel(log_level)
     ch = logging.StreamHandler()
-    ch.setLevel(LOG_LEVEL)
+    ch.setLevel(log_level)
     fmt = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
     ch.setFormatter(fmt)
     logger.addHandler(ch)
+
+    if log_level_environment is None:
+        logger.info("Default log level INFO.")
+    else:
+        logger.info(f'Set log level to user supplied {log_level_environment}.')
 
     logger.info("Start reading environment variales...")
 
     immich_server_address = extract_environment_variable(IMMICH_SERVER_ADDRESS_ENVIRONMENT_VARIABLE, "address of Immich server.").strip("/")
     logger.debug(f'Extracted values of environment variable {IMMICH_SERVER_ADDRESS_ENVIRONMENT_VARIABLE} as {immich_server_address}.')
-    immich_api_key = extract_environment_variable(IMMICH_API_KEY_ENVIRONMENT_VARIABLE, "API key.")
+    immich_api_key = extract_environment_variable(IMMICH_API_KEY_ENVIRONMENT_VARIABLE, "API key")
     
-    immich_libraries = extract_environment_variable(IMMICH_LIBRARIES_NAMES_ENVIRONMENT_VARIABLE, f'\"{IMMICH_LIBRARIES_DELIMITER}\" separated names of libraries.', optional=True)
+    immich_libraries = extract_environment_variable(IMMICH_LIBRARIES_NAMES_ENVIRONMENT_VARIABLE, f'\"{IMMICH_LIBRARIES_DELIMITER}\" separated names of libraries', optional=True)
     if immich_libraries:
         immich_libraries = immich_libraries.split(sep=IMMICH_LIBRARIES_DELIMITER)
         immich_libraries = [library_name.strip() for library_name in immich_libraries]
         logger.debug(f'Extracted values of environment variable {IMMICH_LIBRARIES_NAMES_ENVIRONMENT_VARIABLE} as {immich_libraries}.')
-        immich_libraries_owner_key = extract_environment_variable(IMMICH_LIBRARIES_OWNER_ENVIRONMENT_VARIABLE, f'\"{IMMICH_LIBRARIES_OWNER_ENVIRONMENT_VARIABLE}\" API key of owner of given libraries.')
+        immich_libraries_owner_key = extract_environment_variable(IMMICH_LIBRARIES_OWNER_ENVIRONMENT_VARIABLE, "API key of owner of given libraries")
         logger.debug(f'Extracted values of environment variable {IMMICH_LIBRARIES_OWNER_ENVIRONMENT_VARIABLE}.')
 
-    immich_albums = extract_environment_variable(IMMICH_ALBUMS_ENVIRONMENT_VARIABLE, f'\"{IMMICH_ALBUMS_DELIMITER}\" separated names of albums.', optional=True)
+    immich_albums = extract_environment_variable(IMMICH_ALBUMS_ENVIRONMENT_VARIABLE, f'\"{IMMICH_ALBUMS_DELIMITER}\" separated names of albums', optional=True)
     if immich_albums:
         immich_albums = immich_albums.split(sep=IMMICH_ALBUMS_DELIMITER)
         immich_albums = [album_name.strip() for album_name in immich_albums]
@@ -129,7 +146,7 @@ if __name__ == "__main__":
     # Search assets for retreived album and library IDs #
     #####################################################
 
-    def getAssetsForIDs(json_key, search_ids):
+    def get_assets_for_ids(json_key, search_ids):
         asset_ids = []
         asset_search_header = dict(HEADERS)
         for search_id in search_ids:
@@ -164,11 +181,11 @@ if __name__ == "__main__":
 
     if IMAGE_SOURCE == ImageSource.ALBUMS:
         logger.info("Getting all assets for album ids...")
-        asset_ids = getAssetsForIDs(json_key="albumIds", search_ids=album_ids)
+        asset_ids = get_assets_for_ids(json_key="albumIds", search_ids=album_ids)
         asset_headers = HEADERS
     elif IMAGE_SOURCE == ImageSource.LIBRARIES:
         logger.info("Getting all assets for library ids...")
-        asset_ids = getAssetsForIDs(json_key="libraryId", search_ids=library_ids)
+        asset_ids = get_assets_for_ids(json_key="libraryId", search_ids=library_ids)
         asset_headers = {"X-API-Key": immich_libraries_owner_key, "Content-Type": "application/json"}
 
     ##############################
@@ -212,7 +229,5 @@ if __name__ == "__main__":
                 logger.debug(f'Added focal length {focal_length} and fNumber{f_number} for lens {lens_model} and camera {camera_make}.')
 
     
-    print(metadata)
-
-    # TODO plot metadata
+    return metadata
 
