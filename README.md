@@ -10,7 +10,9 @@ The following optional permissions have to be granted based on filter criteria t
 
 ## Configuration
 The script is configured entirely by environment variables:
+- `LENS_USAGE_IMMICH_SERVER`: Address of the immich server to query. E.g. http://immich.local.
 - `LENS_USAGE_IMMICH_API_KEY`: Immich API key. On how to obtain it, see [here](https://docs.immich.app/features/command-line-interface/#obtain-the-api-key).
+- `LENS_USAGE_LOG_LEVEL`: Specifies the log level (INFO, DEBUG, CRITICAL) for logging.
 
 One of the following variables needs to be set, otherwise, no data can be queried from server.
 - `LENS_USAGE_IMMICH_LIBRARIES_NAMES`: Set to empty string to include all libraries. To ignore this filter, do not set. If set, needs __admin__ authenticated API key.
